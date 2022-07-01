@@ -1,0 +1,461 @@
+---
+output:
+  pdf_document: default
+  html_document: default
+---
+
+# Case Study {#stock-case}
+
+### Stock Application Structure {.unnumbered}
+
+ (ref:stock-app-dir-tree) Basic Application Structure
+
+```{r stock-app-dir-tree, echo = FALSE, fig.cap =' (ref:stock-app-dir-tree) ', out.width = "50%",fig.asp=.75, fig.margin = TRUE, fig.align = "center", out.extra='style="background-color: #808080; padding:5px; display: inline-block;box-shadow: 5px 5px 5px #c2c2c2;"'}
+knitr::include_graphics("images/stock_app/dir_tree.png")
+```
+
+
+
+### Completed The Stock Market Application R Codes {.unnumbered}
+
+
+```{r, eval = FALSE}
+
+# global.R
+
+library(plotly)
+library(shiny)
+library(shinydashboard)
+library(shinydashboardPlus)
+library(shinyalert)
+library(DT)
+library(shinyWidgets)
+library(shinyjs)
+library(ggplot2)
+library(scales)
+library(kableExtra)
+library(htmlwidgets)
+library(dplyr)
+library(shinyWidgets)
+library(quantmod)
+
+options(shiny.maxRequestSize=100*1024^2)
+
+
+#refresh Button ============
+jsRefreshCode <- "shinyjs.refresh = function() { location.reload(); }" 
+
+nyse <- read.csv("data/nyse.csv", stringsAsFactors = FALSE)
+nasdaq  <- read.csv("data/nasdaqcsv.csv", stringsAsFactors = FALSE)
+constituents <- read.csv("data/constituents.csv", stringsAsFactors = FALSE)
+other <- read.csv("data/other-listed.csv", stringsAsFactors = FALSE)
+sticker <- rbind(nasdaq, nyse[,c(1,2)], constituents[, c(1,2)], other[,c(1,2)])
+sticker <- sticker[duplicated(sticker$symbol),]
+sticker$choices <- paste0(sticker$symbol, ": ",sticker$name)
+
+
+#============================
+last_trade <- function(symbol){
+  last_trade <- getQuote(symbol, what=yahooQF(c("Last Trade (Price Only)","Previous Close","Change","Change in Percent")))
+  colnames(last_trade) <- c("Time","Last","Close","Change","P.Change")
+  last_trade$Last <- round(last_trade$Last, 2)
+  last_trade$Time <- paste0(format(last_trade$Time, "%b %d, %H:%M:%OS"), " EST")
+  last_trade$change_out <- ifelse(last_trade$Change >= 0, 
+                                  paste0("<span style='color:#32907c;'>", "+", sprintf("%.2f",last_trade$Change), " ( ", sprintf("%.2f",last_trade$P.Change), "%) &#11014; </span>"),
+                                  paste0("<span style='color:#990000;'>",sprintf("%.2f",last_trade$Change), " ( ", sprintf("%.2f",last_trade$P.Change), "%) &#11015;</span>"))
+  last_trade$change_out_plot <- ifelse(last_trade$Change >= 0, 
+                                       paste0( "+", sprintf("%.2f",last_trade$Change), " ( ", sprintf("%.2f",last_trade$P.Change), "%)"),
+                                       paste0( sprintf("%.2f",last_trade$Change), " ( ", sprintf("%.2f",last_trade$P.Change), "%)"))
+  return(last_trade)
+}
+
+#===========================
+get_stock <- function(symbol, date_from, date_to,periodicity){
+  dt <- getSymbols(symbol, 
+                   from = date_from,
+                   to = date_to,
+                   warnings = FALSE,
+                   verbose = FALSE,
+                   symbol.lookup = TRUE,
+                   auto.assign = FALSE,src = 'yahoo', 
+                   periodicity = periodicity
+                   )
+  last_trade <- getQuote(symbol, what=yahooQF(c("Last Trade (Price Only)","Previous Close","Change","Change in Percent")))
+  colnames(last_trade) <- c("Time","Last","Close","Change","P.Change")
+  last_trade$Last <- round(last_trade$Last, 2)
+  last_trade$Time <- paste0(format(last_trade$Time, "%b %d, %H:%M:%OS"), " EST")
+  last_trade$change_out <- ifelse(last_trade$Change >= 0, 
+                          paste0("<span style='color:#32907c;'>", "+", sprintf("%.2f",last_trade$Change), " ( ", sprintf("%.2f",last_trade$P.Change), "%) &#11014; </span>"),
+                          paste0("<span style='color:#990000;'>",sprintf("%.2f",last_trade$Change), " ( ", sprintf("%.2f",last_trade$P.Change), "%) &#11015;</span>"))
+  last_trade$change_out_plot <- ifelse(last_trade$Change >= 0, 
+                                  paste0( "+", sprintf("%.2f",last_trade$Change), " ( ", sprintf("%.2f",last_trade$P.Change), "%)"),
+                                  paste0( sprintf("%.2f",last_trade$Change), " ( ", sprintf("%.2f",last_trade$P.Change), "%)"))
+  
+  data_return <- data.frame(periodReturn(dt[,6],period = "monthly", type = "arithmetic"))
+  data_return$Name <- symbol
+  data_return$Date <- row.names(data_return)
+  data_return <- data_return[,c(2,3,1)]
+  names(data_return) <- c("Name","Date","Return")
+  
+  dt <- data.frame(Name = symbol,Date=index(dt),coredata(dt))
+  row.names(dt) <- NULL
+  names(dt) <- c("Name","Date","Open","High","Low","Close","Volume","Adjusted")
+  dt <- dt[order(dt$Date, decreasing = TRUE),]
+  dt$ch <- dt$Close- lead(dt$Close)
+  dt$direction <- ifelse(dt$ch >= 0,'Increasing','Decreasing')
+  dt$pch <- (dt$Close- lead(dt$Close))/lead(dt$Close)
+  dt$change <- sprintf("%.2f",dt$ch)
+  dt$per_ch <- sprintf("%.2f",dt$pch *100)
+  dt$change_out <- ifelse(dt$direction == "Increasing", 
+                          paste0("<span style='color:#32907c;'>", "+", dt$change, " ( ", dt$per_ch, "%) &#11014; </span>"),
+                          paste0("<span style='color:#FCF7B9;'>",dt$change, " ( ", dt$per_ch, "%) &#11015;</span>"))
+  
+  #create Bollinger Bands
+  bbands <- BBands(dt[,c("High","Low","Close")])
+  dt <- cbind(dt, bbands)
+  
+  return(list(dt,data_return,last_trade))
+}
+
+# plot_function(Stocks$AAPL, "APPL")
+plot_function <- function(stock,name_stock){
+  # cutom colors
+  i <- list(line = list(color = '#17BECF'))
+  d <- list(line = list(color = '#7F7F7F'))
+
+  p1 <- stock %>%
+    plot_ly(x = ~Date,
+            type = "candlestick",
+            open = ~Open,
+            close = ~Close,
+            high = ~High,
+            low = ~Low,
+            increasing = i, decreasing = d,
+            name = "price") %>%
+    layout(
+      legend = "none",
+      xaxis = list(
+         rangeselector = list(
+          font = list(size = 12),
+          y = 0.95,
+          x = 0.2,
+          buttons = list(
+            list(
+              count = 1,
+              label = "1 month",
+              step = "month",
+              stepmode = "backward"),
+            list(
+              count = 3,
+              label = "3 month",
+              step = "month",
+              stepmode = "backward"),
+            list(
+              count = 6,
+              label = "6 month",
+              step = "month",
+              stepmode = "backward"),
+            list(
+              count = 9,
+              label = "9 month",
+              step = "month",
+              stepmode = "backward"),
+            list(
+              count = 1,
+              label = "1 year",
+              step = "year",
+              stepmode = "backward"),
+            list(count=1,label='RESET',step = "all"))),
+        rangeslider = list(visible = TRUE)),
+      yaxis = list(title = "Price ($)",
+                   showgrid = TRUE,
+                   showticklabels = TRUE))
+
+  fig <- p1 %>% add_lines(x = ~Date, y = ~up , name = "B Bands",
+                          line = list(color = '#ccc', width = 0.5),
+                          legendgroup = "Bollinger Bands",
+                          hoverinfo = "none", inherit = F)
+  fig <- fig %>% add_lines(x = ~Date, y = ~dn, name = "B Bands",
+                           line = list(color = '#ccc', width = 0.5),
+                           legendgroup = "Bollinger Bands", inherit = F,
+                           showlegend = FALSE, hoverinfo = "none")
+  fig <- fig %>% add_lines(x = ~Date, y = ~mavg, name = "Mv Avg",
+                           line = list(color = '#E377C2', width = 0.5),
+                           hoverinfo = "none", inherit = F)
+  fig <- fig %>%  layout(legend = "none")
+
+  # plot volume bar chart
+  fig2 <-  stock
+  fig2 <- fig2 %>% plot_ly(x=~Date, y=~Volume, type='bar', name = "Volume",
+                           color = ~direction, colors = c('#17BECF','#7F7F7F'))
+  fig2 <- fig2 %>% layout(yaxis = list(title = "Volume",size = 12,color = "white",gridcolor = toRGB("gray20")), xaxis = list(size = 12,color = "white"),legend = "none")
+  fig3 <- plotly::subplot(fig, fig2, heights = c(0.7,0.2), nrows=2,shareX = TRUE, titleY = TRUE)
+  fig3 <- fig3 %>% layout(
+                        xaxis = list(size = 12,color = "white",linecolor = "#353c42"),
+                        yaxis = list(size = 12,color = "white",linecolor = "#353c42",gridcolor = toRGB("gray20")),
+                        legend = "none",
+                        showlegend = FALSE,
+                        plot_bgcolor  = "rgba(0, 0, 0, 0)",
+                        paper_bgcolor = "rgba(0, 0, 0, 0)",
+                        fig_bgcolor   = "rgba(0, 0, 0, 0)")
+
+  fig3
+
+}
+
+
+# ui.R
+
+ui = dashboardPage(
+  skin = "midnight",
+  header = source("header.R", local = TRUE)$value,
+  sidebar = source("sidebar.R", local = TRUE)$value,
+  body = dashboardBody(
+    shinyjs::useShinyjs(),
+    shinyjs::extendShinyjs(text = jsRefreshCode, functions = "refresh"), 
+    shinyalert::useShinyalert(),
+    br(),
+    fluidRow( uiOutput("boxes")),br(),
+    fluidRow(column(width = 6,uiOutput("plot")),
+             column(width = 6,uiOutput("plot_area"))),
+    fluidRow(column(width = 10, offset = 1,uiOutput("plot_line")))
+
+  ),
+  controlbar = dashboardControlbar(
+    tagList(
+      fluidRow(column(width = 8, offset = 2,br(),
+      actionButton("refresh","Refresh",icon("refresh", lib = "font-awesome"), width = "100%",style = "color: #fff; background-color: #DD6B55; border-color: #DD6B55"))),
+      helpText("This is refresh button, it will help you to reset your application back to default.", style = "padding-left : 10px; padding-right : 10px;")
+      )
+  ),
+  footer = dashboardFooter(left = HTML("<span style='font-size:12px;'><a href='https://www.loankimrobinson.com'>Author: Loan Kim Robinson </a></span><br>
+                                        <span style='font-size:12px;'>Email: loankimrobinson@gmail.com</span><br>"),
+                           right = "San Diego, Feb 7th 2019"),
+)      
+       
+
+# server.R
+
+source("global.R")
+
+server <-  function(input, output, session){
+  
+  # Reset function (input$refresh ) Start ==============
+  observeEvent(input$refresh, {
+    shinyalert::shinyalert(inputId = "reset_app","Reset your information ...", showCancelButton = TRUE, type = "info", timer = 5000, confirmButtonCol = "#DD6B55")
+  })
+  
+  observe({
+    req(input$reset_app)
+    shinyjs::js$refresh();
+    shinyalert::shinyalert("Done!", "", type = "success", timer = 10000)
+  })
+  # Reset function (input$refresh ) End =============
+
+  # when the user hit the submit button, the sidebar panel closed 
+  observeEvent(input$submit,{
+    shinyjs::addClass(selector = "body", class = "sidebar-collapse")
+  })
+
+  #================================
+  # Get data of last trade
+  
+  values <- reactiveValues(data = NULL)
+  
+observeEvent(input$submit,{
+  
+  #symbols
+  symbols <- input$stickers 
+  
+  # Subtitle 
+  subtitle <- sticker %>% filter(symbol %in% input$stickers)
+  date_from <- input$dt_frome
+  date_to <- input$dt_to
+  Stocks <- lapply(symbols, function(i) get_stock(i, date_from, date_to, periodicity = "daily"))
+  Stocks <- setNames(Stocks, symbols)
+  list2env(Stocks, envir = .GlobalEnv)
+  
+  # stocks data
+  stocks <- lapply(Stocks, function(i) i[[1]])
+  
+  
+  # return data
+  returns <- lapply(Stocks, function(i) i[[2]])
+  returns <- do.call("rbind", returns)
+  
+  # last trade data
+  last_trade <- lapply(Stocks, function(i) i[[3]])
+  
+  
+  lit <- list(stocks,symbols,subtitle, returns,last_trade)
+  # values$data contained stocks data, Symbols, Subtitle, return data and last trade data
+  values$data <- lit
+  
+  
+#=================================  
+    name <- values$data[[2]]
+    dt <- values$data[[1]]
+    subtitle  <- values$data[[3]]
+    subtitle <- gsub("\\(.*","",subtitle$name)
+    last_trade <- values$data[[5]]
+ 
+    returns  <- values$data[[4]]
+
+    # Use return data to plot list of stocks
+    output$plot_out_line <- renderPlotly({
+      p <- plot_ly(returns, x = ~Date, y = ~Return, color = ~Name) %>% add_lines()
+      p <- p %>% layout(legend = list(orientation = 'h', x = 0.5, y = 1.2,
+                        xanchor = 'center', yref = 'paper',
+                        font = list(size = 10)))
+
+    })
+    
+    # Title of the box
+    output$title_line  <- renderText(
+      HTML(paste0("<span style='font-size:20px;'>",paste0(name, collapse = " vs "),"</span><span style='font-size:15px;'>","&nbsp;&nbsp;&nbsp;","","</span>"))
+    )
+    
+    output$footer_line  <- renderText(
+      HTML(paste0("<span style='font-size:20px;'> How to Develop a Stock Analysis Application using R Shiny?</span><br>"))
+    )
+    
+    output$footer_line_1  <- renderText(
+      HTML(paste0("<span style='font-size:12px;'><a href='https://www.loankimrobinson.com'>Author: Loan Kim Robinson </a></span><br>
+                    <span style='font-size:12px;'>Email: loankimrobinson@gmail.com</span><br>"))
+    )
+    
+    output$dl_all <- renderUI({
+      actionButton("dl_all","Download Data",icon = icon("save"), style = "color: #fff; background-color: #32907c; border-color: #32907c; width:100%")
+    })
+    
+    # render everything in a box
+    output$plot_line <- renderUI({
+      box(
+        width = 12,
+        title = tagList(htmlOutput("title_line"),
+                        span(style = "position:absolute;right:1em;top:4px;",uiOutput("dl_all"))),
+        plotlyOutput("plot_out_line", height = "500"),
+        footer = fluidRow(htmlOutput("footer_line",style = "text-align:center;"),
+                          htmlOutput("footer_line_1",style = "text-align:right;padding-right:10px;"))
+      )
+    })
+    #==========================
+ 
+    output$boxes <- renderUI({
+      lapply(1:length(name), function(a, name, dt, subtitle,last_trade) {
+ 
+        output[[name[[a]]]] <- renderText(
+          HTML(paste0("<span style='font-size:40px;'>",format(last_trade[[a]]$Last,nsmall=2,big.mark=","),"</span><span style='font-size:18px;'> USD</span>"))
+          )
+        
+        output[[paste0("vol_",name[[a]])]] <- renderText(
+          HTML(paste0("<span style='font-size:12px;'>Volume: ",format(dt[[a]]$Volume[1], nsmall=0,big.mark=","),"</span><span style='font-size:12px;'> </span>"))
+        )
+        
+        output[[paste0("low_",name[[a]])]] <- renderText(
+          HTML(paste0("<span style='font-size:12px;'>Low: ",sprintf("%.2f",dt[[a]]$Low[1]),"</span><span style='font-size:12px;'> </span>"))
+        )
+        
+        output[[paste0("name_",name[[a]])]] <- renderText(
+          HTML(paste0("<span style='font-size:20px;'>",name[[a]],"</span><span style='font-size:15px;'>","&nbsp;&nbsp;&nbsp;",subtitle[[a]],"</span>"))
+        )
+        
+        output[[paste0("ch_",name[[a]])]] <- renderText(
+          HTML(last_trade[[a]]$change_out)
+        )
+        
+        output[[paste0("time_",name[[a]])]] <- renderText(
+          HTML(last_trade[[a]]$Time)
+        )
+
+       box(
+           width = 3,
+            title = htmlOutput(paste0("name_",name[[a]])),
+            htmlOutput(name[[a]],style = "text-align:center;"),br(),
+            splitLayout(cellWidths = c("70%", "30%"),
+                       htmlOutput(paste0("ch_",name[[a]]),style = "text-align:left;padding-left:10px;font-size:22px;color:#32907c"),
+                       div(style ="text-align:center;",
+            actionButton(name[[a]], label = "Explore", class = "css-selector",
+                         onclick = "Shiny.setInputValue('btnLabel', this.id);",  #onclick = "Shiny.setInputValue('btnLabel', this.this.innerText);", to capture label
+                         style = "background-color:#353c42;border-color:transparent;color:white;"))
+            ),
+           htmlOutput(paste0("time_",name[[a]]),style = "text-align:left;padding-left:10px;font-size:10px;color:white"),
+           footer = fluidRow(htmlOutput(paste0("vol_",name[[a]]),style = "text-align:right;padding-right:10px;"))
+        )
+      }, name = name, dt = dt, subtitle = subtitle,last_trade = last_trade)
+    })
+   
+}) # end of obserevent observeEvent(input$submit,{
+
+observeEvent(input$btnLabel,{
+  req(input$submit)
+  stock <- values$data[[1]]
+  stock <- stock[[input$btnLabel]]
+  
+  
+  last_trade <- values$data[[5]]
+  last_trade <- last_trade[[input$btnLabel]]
+ 
+  names <- input$btnLabel
+  subtitle <- sticker %>% filter(symbol %in% input$btnLabel)
+  subtitle <- gsub("\\(.*","",subtitle$name)
+  
+  
+  
+  # ggplot2
+  output$ggplot_area <- renderPlot({
+    
+    min <- min(stock$Open)-(min(stock$Open)/10)
+    max <- max(stock$Open)
+    grad_df <- data.frame(yintercept = seq(0, max(stock$Open), length.out = 1000),
+                          alpha = seq(1,0.0, length.out = 1000))
+    
+    p <- ggplot2::ggplot(stock, aes(x= Date, y = Open)) +
+      geom_area(fill = "#32907c", alpha = 0.9) + 
+      geom_hline(data = grad_df, aes(yintercept = yintercept, alpha = alpha),
+                 size = 1, colour = "white") +
+      geom_line(colour = "#32907c", size = 1) +
+      coord_cartesian(ylim = c(min, max))
+    p <- p +labs(x ="Date", y = "Price ($)")
+    p <- p + theme(legend.position = "none")
+    print(p)
+
+  })
+ 
+  # plotly
+  output$plot_out <- renderPlotly({
+    plot_function(stock, names)
+   })
+  
+  output$title  <-  output$title_1 <- renderText(
+    HTML(paste0("<span style='font-size:20px;'>",names,"</span><span style='font-size:15px;'>","&nbsp;&nbsp;&nbsp;",subtitle[1],"</span>"))
+  )
+  
+  output$dl <- renderUI({
+    actionButton("dl","Download Data",icon = icon("save"), style = "color: #fff; background-color: #32907c; border-color: #32907c; width:100%")
+  })
+
+  # Plotly
+  output$plot <- renderUI({
+    box(
+      width = 12,
+      title = htmlOutput("title"),
+      plotlyOutput("plot_out", height = "500")
+    )
+  })
+  
+  #ggplot2
+  output$plot_area <- renderUI({
+    box(
+      width = 12,
+      title = tagList(htmlOutput("title_1"),
+                       span(style = "position:absolute;right:1em;top:4px;",uiOutput("dl"))),
+      plotOutput("ggplot_area",height = "500")
+    )
+  })
+  
+})
+
+}
+
+```
