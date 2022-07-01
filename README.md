@@ -49,10 +49,11 @@ These are the features we cover in this chapter.
     The user inputs is on the right panel, the output is on the left
     panel.
 
-<img src="images/google_trend/google-ui.png" alt=" Google Trend Visualization Application - Interface UI " width="90%"  />
+<img align="center" src="images/google_trend/google-ui.png" alt=" Google Trend Visualization Application - Interface UI " style='background-color: #808080; padding:5px; display: inline-block;box-shadow: 5px 15px 10px #c2c2c2;' width="90%"  />
 <p class="caption">
 Google Trend Visualization Application - Interface UI
 </p>
+
 
 Frontend/ User Interface UI
 ===========================
@@ -90,7 +91,7 @@ Google provided 5 different product choices for search, they are “Web”,
       )
     })
 
-<img src="images/google_trend/google-product.png" alt=" Google Products Input - Interface UI " width="30%"  />
+<img align="center"  src="images/google_trend/google-product.png" alt=" Google Products Input - Interface UI " style='background-color: #808080; padding:5px; display: inline-block;box-shadow: 5px 15px 10px #c2c2c2;' width="30%" />
 <p class="caption">
 Google Products Input - Interface UI
 </p>
@@ -131,7 +132,7 @@ two specific dates. I just want to separate the default and manual date.
       )
     })
 
-<img src="images/google_trend/google_time_period.png" alt=" Time Period Input - Interface UI " width="30%"  />
+<img align="center"  src="images/google_trend/google_time_period.png" alt=" Time Period Input - Interface UI " style='background-color: #808080; padding:5px; display: inline-block;box-shadow: 5px 15px 10px #c2c2c2;' width="30%"  />
 <p class="caption">
 Time Period Input - Interface UI
 </p>
@@ -153,7 +154,7 @@ than using `dateInput()`
             end = Sys.Date())
       })
 
-<img src="images/google_trend/google_spe_date.png" alt=" Google Specific Date - Interface UI " width="30%"  />
+<img align="center"  src="images/google_trend/google_spe_date.png" alt=" Google Specific Date - Interface UI " style='background-color: #808080; padding:5px; display: inline-block;box-shadow: 5px 15px 10px #c2c2c2;' width="30%"  />
 <p class="caption">
 Google Specific Date - Interface UI
 </p>
@@ -168,7 +169,7 @@ from top to bottom and left to right. I used `width = 3` for each box.
 In the next chapter @ref(google-server-boxes) you will learn how to
 reply and apply user input to create these boxes.
 
-<img src="images/google_trend/google-box.png" alt=" Information Boxes - Interface UI " width="90%"  />
+<img align="center"  src="images/google_trend/google-box.png" alt=" Information Boxes - Interface UI " style='background-color: #808080; padding:5px; display: inline-block;box-shadow: 5px 15px 10px #c2c2c2;' width="90%"  />
 <p class="caption">
 Information Boxes - Interface UI
 </p>
@@ -256,7 +257,7 @@ And finally, a drop-down menu with the “Download” button will appear in
 the upper right corner of the box. Leave it as it is for now. Go back to
 the next chapter @ref(google-server-region) to understand the details.
 
-<img src="images/google_trend/google-map.png" alt=" Google Map - Interface UI " width="40%"  />
+<img align="center"  src="images/google_trend/google-map.png" alt=" Google Map - Interface UI " style='background-color: #808080; padding:5px; display: inline-block;box-shadow: 5px 15px 10px #c2c2c2;' width="40%"  />
 <p class="caption">
 Google Map - Interface UI
 </p>
@@ -269,7 +270,7 @@ before you even have a plot, you can read the next chapter
 @ref(google-server-relative). We can learn how the relative keyword is
 related, one thing for us is to look at it when analyzing.
 
-<img src="images/google_trend/google-network.png" alt=" Google Network Visualization - Interface UI " width="40%"  />
+<img align="center"  src="images/google_trend/google-network.png" alt=" Google Network Visualization - Interface UI " style='background-color: #808080; padding:5px; display: inline-block;box-shadow: 5px 15px 10px #c2c2c2;' width="40%"  />
 <p class="caption">
 Google Network Visualization - Interface UI
 </p>
@@ -281,7 +282,7 @@ represented the number of hits per date. How to use `plotly` for bar and
 line charts we will learn in the next chapter
 @ref(google-server-timeseries)
 
-<img src="images/google_trend/google-linechart.png" alt=" Google Trend Linechart - Interface UI " width="40%"  />
+<img align="center"  src="images/google_trend/google-linechart.png" alt=" Google Trend Linechart - Interface UI " style='background-color: #808080; padding:5px; display: inline-block;box-shadow: 5px 15px 10px #c2c2c2;' width="40%"  />
 <p class="caption">
 Google Trend Linechart - Interface UI
 </p>
@@ -293,7 +294,7 @@ Related Searches and Breakdown Compared for Metropolitan Areas. Again,
 we will use `datatable` to create the tables. The next chapter  @ref
 (google-server-table) shows how to create these tables.
 
-<img src="images/google_trend/google-table.png" alt=" Tables - Interface UI " width="40%"  />
+<img align="center"  src="images/google_trend/google-table.png" alt=" Tables - Interface UI " style='background-color: #808080; padding:5px; display: inline-block;box-shadow: 5px 15px 10px #c2c2c2;' width="40%"  />
 <p class="caption">
 Tables - Interface UI
 </p>
