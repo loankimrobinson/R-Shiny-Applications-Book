@@ -49,7 +49,7 @@ These are the features we cover in this chapter.
     The user inputs is on the right panel, the output is on the left
     panel.
 
-<img align="center" src="images/google_trend/google-ui.png" alt=" Google Trend Visualization Application - Interface UI " width="90%"  />
+<img align="center" src="images/google_trend/google-ui.png" alt=" Google Trend Visualization Application - Interface UI " width="70%"  />
 <p class="caption">
 Google Trend Visualization Application - Interface UI
 </p>
@@ -91,7 +91,7 @@ Google provided 5 different product choices for search, they are “Web”,
       )
     })
 
-<img align="center"  src="images/google_trend/google-product.png" alt=" Google Products Input - Interface UI " width="30%" />
+<img align="center"  src="images/google_trend/google-product.png" alt=" Google Products Input - Interface UI " width="20%" height="350px" />
 <p class="caption">
 Google Products Input - Interface UI
 </p>
@@ -132,7 +132,7 @@ two specific dates. I just want to separate the default and manual date.
       )
     })
 
-<img align="center"  src="images/google_trend/google_time_period.png" alt=" Time Period Input - Interface UI " width="30%"  />
+<img align="center"  src="images/google_trend/google_time_period.png" alt=" Time Period Input - Interface UI " width="20%" height="350px"  />
 <p class="caption">
 Time Period Input - Interface UI
 </p>
@@ -154,7 +154,7 @@ than using `dateInput()`
             end = Sys.Date())
       })
 
-<img align="center"  src="images/google_trend/google_spe_date.png" alt=" Google Specific Date - Interface UI " width="30%"  />
+<img align="center"  src="images/google_trend/google_spe_date.png" alt=" Google Specific Date - Interface UI " width="20%" height="350px"   />
 <p class="caption">
 Google Specific Date - Interface UI
 </p>
@@ -169,7 +169,7 @@ from top to bottom and left to right. I used `width = 3` for each box.
 In the next chapter @ref(google-server-boxes) you will learn how to
 reply and apply user input to create these boxes.
 
-<img align="center"  src="images/google_trend/google-box.png" alt=" Information Boxes - Interface UI "  width="90%"  />
+<img align="center"  src="images/google_trend/google-box.png" alt=" Information Boxes - Interface UI "  width="70%"  />
 <p class="caption">
 Information Boxes - Interface UI
 </p>
